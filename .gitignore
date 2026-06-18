@@ -1,0 +1,17 @@
+# --- Spring Boot (Java) ---
+target/
+.gradle/
+.settings/
+.classpath
+.project
+*.log
+
+# --- React (Node.js) ---
+node_modules/
+dist/
+.vite/
+
+# --- Tüm VS Code ve IDE ayarları (Şifrelerin burada gizli) ---
+.vscode/
+.idea/
+.DS_Store
