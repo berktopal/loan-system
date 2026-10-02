@@ -42,6 +42,7 @@ function App() {
   
   const [formData, setFormData] = useState({ identityNumber: '', requestedAmount: '', termMonths: '' });
   const [result, setResult] = useState(null);
+  const [formError, setFormError] = useState(null);
 
   const handleLoginChange = (e) => setLoginData({ ...loginData, [e.target.name]: e.target.value });
 
@@ -63,23 +64,34 @@ function App() {
     setToken('');
     localStorage.removeItem('token');
     setResult(null);
+    setFormError(null);
   };
 
   const handleFormChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError(null);
     try {
       const response = await axios.post('http://localhost:8080/api/loans/apply', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResult(response.data);
     } catch (error) {
-      if (error.response && error.response.status === 403) {
-        setLoginError("Oturum süresi doldu.");
+      const status = error.response?.status;
+      const data = error.response?.data;
+      if (status === 401 || status === 403) {
         handleLogout();
+        setLoginError("Oturum süresi doldu. Lütfen tekrar giriş yapın.");
+      } else if (status === 400 || status === 404) {
+        // Sunucunun alan bazlı doğrulama mesajlarını kullanıcıya göster
+        setResult(null);
+        setFormError({
+          message: data?.message || 'İstek doğrulanamadı.',
+          details: data?.errors ? Object.values(data.errors) : [],
+        });
       } else {
-        alert("Sistem Hatası: İşlem loglarını kontrol ediniz.");
+        setFormError({ message: 'Sistem hatası oluştu. Lütfen daha sonra tekrar deneyin.', details: [] });
       }
     }
   };
@@ -136,12 +148,18 @@ function App() {
               </Typography>
               <Box component="form" onSubmit={handleSubmit}>
                 <TextField fullWidth margin="normal" required label="Müşteri T.C. Kimlik No" name="identityNumber" inputProps={{ maxLength: 11 }} onChange={handleFormChange} />
-                <TextField fullWidth margin="normal" required type="number" label="Talep Edilen Kredi Tutarı (₺)" name="requestedAmount" onChange={handleFormChange} />
+                <TextField fullWidth margin="normal" required type="number" label="Talep Edilen Kredi Tutarı (₺)" name="requestedAmount" inputProps={{ min: 1000, max: 10000000, step: '0.01' }} onChange={handleFormChange} />
                 <TextField fullWidth margin="normal" required select label="Vade Seçeneği" name="termMonths" value={formData.termMonths} onChange={handleFormChange}>
                   <MenuItem value="12">12 Ay (Kısa Vade)</MenuItem>
                   <MenuItem value="24">24 Ay (Orta Vade)</MenuItem>
                   <MenuItem value="36">36 Ay (Uzun Vade)</MenuItem>
                 </TextField>
+                {formError && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    <AlertTitle>{formError.message}</AlertTitle>
+                    {formError.details.map((d) => <div key={d}>{d}</div>)}
+                  </Alert>
+                )}
                 <Button type="submit" fullWidth variant="contained" size="large" sx={{ mt: 4, py: 1.5, fontWeight: 'bold' }}>
                   Risk Analizini Başlat
                 </Button>
@@ -160,6 +178,11 @@ function App() {
                 {result.rejectionReason && (
                   <Typography variant="body2" color="error" sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
                     <strong>Ret Gerekçesi:</strong> {result.rejectionReason}
+                  </Typography>
+                )}
+                {result.monthlyInstallment != null && (
+                  <Typography variant="body2" sx={{ mt: 2 }}>
+                    <strong>Aylık Taksit:</strong> {Number(result.monthlyInstallment).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ ({result.termMonths} ay)
                   </Typography>
                 )}
                 <Typography variant="caption" display="block" sx={{ mt: 3, color: 'text.secondary' }}>

@@ -31,6 +31,14 @@ public class LoanApplication {
     private LocalDateTime applicationDate;
     private String rejectionReason;
 
+    // Hesaplanan aylık taksit (anapara / vade)
+    @Column(precision = 19, scale = 2)
+    private BigDecimal monthlyInstallment;
+
+    // Denetim izi: başvuruyu değerlendiren personel
+    @Column(length = 100)
+    private String createdBy;
+
     @PrePersist
     protected void onCreate() {
         this.applicationDate = LocalDateTime.now();
