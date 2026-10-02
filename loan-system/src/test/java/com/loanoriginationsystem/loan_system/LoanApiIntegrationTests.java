@@ -78,7 +78,7 @@ class LoanApiIntegrationTests {
     void malformedTokenReturns401NotServerError() throws Exception {
         assertEquals(401, apply("12345678901", "10000", 12, "not-a-jwt").statusCode());
         assertEquals(401, apply("12345678901", "10000", 12,
-                "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvZmZpY2VyIn0.invalidsignature").statusCode());
+                "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvZmZpY2VyIn0.invalidsignature").statusCode()); // gitleaks:allow (bilerek geçersiz imzalı test token'ı)
     }
 
     // ---------- Girdi doğrulama ----------
