@@ -1,52 +1,45 @@
 package com.loanoriginationsystem.loan_system.controller;
 
 import com.loanoriginationsystem.loan_system.security.JwtUtil;
-import lombok.Data;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // React'ten gelecek istekler için
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         try {
-            // Spring Security'nin yöneticisi, gönderilen kullanıcı adı ve şifreyi kontrol eder
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-            );
-        } catch (Exception e) {
-            throw new RuntimeException("Hatalı kullanıcı adı veya şifre!");
+            // Spring Security kullanıcı adı ve şifreyi doğrular
+            var authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            return ResponseEntity.ok(new AuthResponse(jwtUtil.generateToken(userDetails)));
+        } catch (AuthenticationException e) {
+            // 500 yerine 401; hangi alanın yanlış olduğu söylenmez
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Hatalı kullanıcı adı veya şifre.");
         }
-
-        // Eğer şifre doğruysa, kullanıcı bilgilerini al ve şifreli bir bilet (Token) üret
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
-        final String jwt = jwtUtil.generateToken(userDetails);
-
-        return ResponseEntity.ok(new AuthResponse(jwt));
     }
-}
 
-// Dışarıdan gelecek JSON isteklerini karşılayacak sınıflar
-@Data
-class AuthRequest {
-    private String username;
-    private String password;
-}
+    public record AuthRequest(
+            @NotBlank(message = "Kullanıcı adı zorunludur.") String username,
+            @NotBlank(message = "Şifre zorunludur.") String password) {
+    }
 
-@Data
-class AuthResponse {
-    private final String token;
+    public record AuthResponse(String token) {
+    }
 }
